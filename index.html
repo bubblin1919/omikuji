@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>抽出你的今日運勢！</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* 1. 全域與字型備援設定 */
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Zen Maru Gothic', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+      background: linear-gradient(180deg, #FFEBEF 0%, #FFF5EF 40%, #F3F7FF 100%);
+      color: #333333;
+      min-height: 100vh;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 文字強效換行防破版 */
+    .break-word-custom {
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+
+    /* 2. 動畫效果 */
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-10px) rotate(0.5deg); }
+    }
+
+    .animate-float {
+      animation: float 4s ease-in-out infinite;
+    }
+
+    /* 櫻花飄落動畫 */
+    .sakura-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      overflow: hidden;
+    }
+
+    .petal {
+      position: absolute;
+      background: linear-gradient(135deg, #FFB7C5, #FFE4E1);
+      border-radius: 15px 0 15px 0;
+      opacity: 0.8;
+      pointer-events: none;
+      animation: fall linear infinite, sway ease-in-out infinite alternate;
+    }
+
+    @keyframes fall {
+      0% { top: -10%; }
+      100% { top: 110%; }
+    }
+
+    @keyframes sway {
+      0% { transform: translateX(0) rotate(0deg); }
+      100% { transform: translateX(80px) rotate(360deg); }
+    }
+
+    /* 籤筒搖晃動畫 */
+    @keyframes shake {
+      0% { transform: rotate(0deg); }
+      15% { transform: rotate(-12deg) translateY(-5px); }
+      30% { transform: rotate(12deg) translateY(5px); }
+      45% { transform: rotate(-10deg); }
+      60% { transform: rotate(10deg); }
+      75% { transform: rotate(-5deg); }
+      90% { transform: rotate(5deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    .animate-shake {
+      animation: shake 0.8s ease-in-out infinite;
+    }
+
+    /* 籤木升起動畫 */
+    @keyframes rise {
+      0% { transform: translateY(60px); opacity: 0; }
+      50% { opacity: 1; }
+      100% { transform: translateY(-70px); opacity: 1; }
+    }
+
+    .animate-rise {
+      animation: rise 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+
+    .torii-glow {
+      filter: drop-shadow(0 0 15px rgba(217, 56, 41, 0.25));
+    }
+
+    .japanese-border {
+      border: 3px solid #D93829;
+      box-shadow: 0 8px 0 #A8281B, inset 0 0 0 2px #FFF;
+    }
+
+    #toast {
+      transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen relative justify-between items-center p-4">
+
+  <!-- 背景櫻花容器 -->
+  <div id="sakuraContainer" class="sakura-container"></div>
+
+  <!-- 音效控制按鈕 (右上角) -->
+  <button id="audioToggleBtn" onclick="toggleAudio()" class="fixed top-4 right-4 z-50 bg-white/90 hover:bg-white text-gray-700 p-3 rounded-full shadow-md transition-all duration-300 transform hover:scale-105 flex items-center justify-center border border-red-200" title="音效切換">
+    <svg id="soundOnIcon" class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+    </svg>
+    <svg id="soundOffIcon" class="w-6 h-6 text-gray-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>
+    </svg>
+  </button>
+
+  <!-- 主內容區域 -->
+  <main class="w-full max-w-lg my-auto relative z-20 flex flex-col items-center justify-center text-center">
+
+    <!-- 頁面 1: 首頁 -->
+    <section id="homeView" class="w-full flex flex-col items-center transition-all duration-300">
+      
+      <!-- 嚴格依據 3.5.1: 僅顯示「抽出你的今日運勢！」無額外贅字 -->
+      <h1 class="text-3xl sm:text-4xl font-black text-slate-800 my-6 tracking-wide leading-tight">
+        抽出你的今日運勢！
+      </h1>
+
+      <!-- 點擊鳥居 (無文字提示，僅微浮動動畫) -->
+      <div onclick="startDrawProcess()" class="cursor-pointer group relative my-4 p-2 transition-transform duration-300 hover:scale-105 active:scale-95">
+        <svg class="w-72 sm:w-80 h-auto animate-float torii-glow" viewBox="0 0 300 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 背景雲朵插畫 -->
+          <path d="M40 180 C20 180 10 160 25 140 C10 120 30 90 60 100 C80 70 120 70 140 90 C170 70 210 80 220 110 C240 100 270 120 260 150 C280 170 260 200 230 190 C210 210 160 210 140 190 C110 210 60 200 40 180 Z" fill="#FFFFFF" fill-opacity="0.85"/>
+          <path d="M10 200 C-5 200 -10 180 5 165 C-5 145 15 125 40 135 C55 110 90 110 105 125 C130 110 160 120 170 145 C185 135 210 150 200 175 C215 190 200 215 175 205 C160 220 120 220 105 205 C80 220 40 215 10 200 Z" fill="#FFF0F3" fill-opacity="0.7"/>
+
+          <!-- 日式鳥居圖案 -->
+          <g id="ToriiGate">
+            <rect x="85" y="80" width="16" height="110" rx="4" fill="#A8281B"/>
+            <rect x="85" y="80" width="8" height="110" rx="2" fill="#D93829"/>
+            <rect x="199" y="80" width="16" height="110" rx="4" fill="#A8281B"/>
+            <rect x="199" y="80" width="8" height="110" rx="2" fill="#D93829"/>
+            <rect x="81" y="180" width="24" height="12" rx="2" fill="#222222"/>
+            <rect x="195" y="180" width="24" height="12" rx="2" fill="#222222"/>
+            <rect x="70" y="110" width="160" height="12" rx="2" fill="#D93829"/>
+            <rect x="70" y="110" width="160" height="4" rx="1" fill="#FF5240"/>
+            <rect x="144" y="82" width="12" height="28" fill="#D93829"/>
+            <rect x="141" y="78" width="18" height="6" fill="#222222"/>
+            <path d="M50 78 C100 70 200 70 250 78 L254 90 C200 82 100 82 46 90 Z" fill="#222222"/>
+            <path d="M45 74 C100 64 200 64 255 74 L252 82 C200 72 100 72 48 82 Z" fill="#D93829"/>
+            <path d="M45 74 C100 64 200 64 255 74 L255 78 C200 68 100 68 45 78 Z" fill="#FF5240"/>
+            <rect x="85" y="105" width="16" height="5" fill="#E5A93C"/>
+            <rect x="199" y="105" width="16" height="5" fill="#E5A93C"/>
+            <path d="M85 118 Q150 135 215 118" stroke="#F5E5C9" stroke-width="5" stroke-dasharray="6 3" fill="none"/>
+            <path d="M120 125 L125 135 L120 140 L125 148" stroke="#FFF" stroke-width="3" fill="none"/>
+            <path d="M150 128 L155 138 L150 143 L155 151" stroke="#FFF" stroke-width="3" fill="none"/>
+            <path d="M180 125 L185 135 L180 140 L185 148" stroke="#FFF" stroke-width="3" fill="none"/>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <!-- 頁面 2: 抽籤過程 (無任何文字，僅顯示籤筒與動畫) -->
+    <section id="shakeView" class="w-full flex-col items-center justify-center hidden my-auto py-12">
+      <div class="relative w-64 h-80 flex items-center justify-center">
+        
+        <!-- 滑出的竹籤 -->
+        <div id="omikujiStick" class="absolute top-8 z-0 opacity-0 transition-all duration-300">
+          <div class="w-7 h-44 bg-amber-100 border-2 border-amber-600 rounded-t-md shadow-md flex flex-col items-center justify-start pt-3">
+            <div class="w-3 h-3 bg-red-500 rounded-full mb-2"></div>
+            <span class="text-xs font-black text-amber-900" style="writing-mode: vertical-rl;">
+              御神籤
+            </span>
+          </div>
+        </div>
+
+        <!-- 御神籤籤筒 -->
+        <div id="omikujiCylinder" class="relative z-10 w-48 h-64">
+          <svg class="w-full h-full drop-shadow-2xl" viewBox="0 0 200 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M30 40 L170 40 L185 230 C185 240 170 250 100 250 C30 250 15 240 15 230 Z" fill="#8B5A2B"/>
+            <path d="M30 40 L100 40 L100 250 C30 250 15 240 15 230 Z" fill="#A06A3B"/>
+            <path d="M25 65 L175 65 L177 75 L23 75 Z" fill="#E5A93C"/>
+            <path d="M18 210 L182 210 L184 220 L16 220 Z" fill="#E5A93C"/>
+            <ellipse cx="100" cy="40" rx="70" ry="15" fill="#5C3A1A"/>
+            <ellipse cx="100" cy="40" rx="55" ry="10" fill="#3D240F"/>
+            <ellipse cx="100" cy="40" rx="18" ry="4" fill="#1A0F06"/>
+
+            <rect x="70" y="110" width="60" height="90" rx="4" fill="#FFFDF9" stroke="#E5A93C" stroke-width="3"/>
+            <rect x="74" y="114" width="52" height="82" rx="2" fill="#D93829"/>
+            <text x="100" y="142" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="20" fill="#FFFDF9" text-anchor="middle">御</text>
+            <text x="100" y="167" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="20" fill="#FFFDF9" text-anchor="middle">神</text>
+            <text x="100" y="192" font-family="'Zen Maru Gothic', sans-serif" font-weight="900" font-size="20" fill="#FFFDF9" text-anchor="middle">籤</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- 頁面 3: 運勢結果頁 -->
+    <section id="resultView" class="w-full flex-col items-center hidden">
+      
+      <!-- 運勢卡片 -->
+      <div id="omikujiCard" class="w-full bg-[#FFFDF9] rounded-3xl p-6 sm:p-8 japanese-border shadow-2xl relative overflow-hidden my-2">
+        
+        <div class="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-red-600 via-amber-400 to-red-600"></div>
+
+        <!-- 運勢等級標題 -->
+        <div class="my-4 text-center">
+          <div id="fortuneBadge" class="inline-block px-8 py-3 rounded-2xl text-4xl sm:text-5xl font-black tracking-widest shadow-inner my-2">
+            大吉
+          </div>
+        </div>
+
+        <!-- 主要文案區域 -->
+        <div class="my-6 p-5 bg-red-50/60 rounded-2xl border border-red-100 relative">
+          <p id="fortunePoem" class="text-lg sm:text-xl font-bold text-gray-800 leading-relaxed tracking-wide break-word-custom">
+            看來今天會有大好事發生唷！你就是今日的 Superstar！
+          </p>
+        </div>
+
+        <!-- 幸運指南 (僅顯示幸運色與幸運小物) -->
+        <div class="mt-6 pt-6 border-t-2 border-dashed border-gray-200 grid grid-cols-2 gap-4">
+          
+          <div class="bg-gray-50 p-4 rounded-xl flex flex-col items-center justify-center border border-gray-100">
+            <span class="text-xs font-bold text-gray-400 mb-1.5">幸運色</span>
+            <div class="flex items-center gap-2 mt-1">
+              <span id="colorDot" class="w-4 h-4 rounded-full border border-black/10 shadow-sm" style="background-color: #FFD1DC;"></span>
+              <span id="luckyColorText" class="font-extrabold text-slate-700 text-base">櫻花粉</span>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 p-4 rounded-xl flex flex-col items-center justify-center border border-gray-100">
+            <span class="text-xs font-bold text-gray-400 mb-1.5">幸運小物</span>
+            <span id="luckyItemText" class="font-extrabold text-slate-700 text-base mt-1">神社御守</span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- 按鈕選單 (僅包含 3.5.3 規定的四大功能按鈕) -->
+      <div class="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+        
+        <button onclick="startDrawProcess()" class="w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-md transition-all text-base">
+          再抽一次
+        </button>
+
+        <button onclick="copyFortuneText()" class="w-full bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-md transition-all text-base">
+          複製籤詩
+        </button>
+
+        <button onclick="downloadFortuneCard()" class="w-full bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-md transition-all text-base">
+          下載卡片
+        </button>
+
+        <button onclick="showHome()" class="w-full bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-700 font-extrabold py-3.5 px-6 rounded-2xl transition-all text-base">
+          返回首頁
+        </button>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 提示浮磚 (Toast) -->
+  <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 text-white px-6 py-3 rounded-full shadow-2xl opacity-0 pointer-events-none text-sm font-bold flex items-center gap-2 border border-slate-700">
+    <span id="toastMsg">成功複製籤詩！</span>
+  </div>
+
+  <canvas id="exportCanvas" class="hidden"></canvas>
+
+  <script>
+    /* 1. 運勢資料庫 (嚴格依照 3.3.1) */
+    const FORTUNES = [
+      {
+        level: '大吉',
+        poem: '看來今天會有大好事發生唷！你就是今日的 Superstar！',
+        color: 'bg-red-500 text-white'
+      },
+      {
+        level: '吉',
+        poem: '準備好迎接美麗的一天吧！',
+        color: 'bg-rose-500 text-white'
+      },
+      {
+        level: '小吉',
+        poem: '平穩順利的一天就要開始囉～',
+        color: 'bg-emerald-500 text-white'
+      },
+      {
+        level: '小凶',
+        poem: '稍微小心一點就能輕鬆度過了！咦，出門時有檢查該帶的東西嗎？',
+        color: 'bg-amber-500 text-white'
+      },
+      {
+        level: '凶',
+        poem: '今天要注意一下細節喔～',
+        color: 'bg-slate-600 text-white'
+      },
+      {
+        level: '大凶',
+        poem: '不要害怕！凡事小心就沒事了！',
+        color: 'bg-gray-800 text-white'
+      }
+    ];
+
+    const LUCKY_COLORS = [
+      { name: '櫻花粉', hex: '#FFD1DC' },
+      { name: '抹茶綠', hex: '#87A96B' },
+      { name: '琉璃藍', hex: '#4682B4' },
+      { name: '日光黃', hex: '#FFD700' },
+      { name: '紫藤紫', hex: '#C8A2C8' },
+      { name: '甘橘橙', hex: '#FFA500' }
+    ];
+
+    const LUCKY_ITEMS = [
+      '抹茶拿鐵', '神社御守', '日式飯糰', '招財貓吊飾', '銅鑼燒', '風鈴'
+    ];
+
+    let soundEnabled = true;
+    let audioCtx = null;
+    let currentFortuneResult = null;
+
+    /* 2. Web Audio 音效合成 */
+    function initAudioContext() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioCtx = new AudioContext();
+      }
+    }
+
+    function toggleAudio() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('soundOnIcon').classList.toggle('hidden', !soundEnabled);
+      document.getElementById('soundOffIcon').classList.toggle('hidden', soundEnabled);
+      showToast(soundEnabled ? '音效 ON' : '音效 OFF');
+    }
+
+    function playWoodenShakeSound() {
+      if (!soundEnabled) return;
+      initAudioContext();
+      if (!audioCtx) return;
+
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(120 + Math.random() * 80, now);
+      osc.frequency.exponentialRampToValueAtTime(30, now + 0.08);
+
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.08);
+    }
+
+    function playBellSound() {
+      if (!soundEnabled) return;
+      initAudioContext();
+      if (!audioCtx) return;
+
+      const freqs = [523.25, 659.25, 783.99, 1046.50];
+      freqs.forEach((freq, index) => {
+        const now = audioCtx.currentTime + index * 0.08;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + 1.2);
+      });
+    }
+
+    /* 3. 櫻花特效 */
+    function createSakuraPetals() {
+      const container = document.getElementById('sakuraContainer');
+      const petalCount = 16;
+
+      for (let i = 0; i < petalCount; i++) {
+        const petal = document.createElement('div');
+        petal.className = 'petal';
+
+        const size = Math.random() * 12 + 10;
+        petal.style.width = `${size}px`;
+        petal.style.height = `${size * 1.4}px`;
+        petal.style.left = `${Math.random() * 100}%`;
+        
+        const fallDuration = Math.random() * 6 + 6;
+        const swayDuration = Math.random() * 3 + 2;
+        const delay = Math.random() * 8;
+
+        petal.style.animationDuration = `${fallDuration}s, ${swayDuration}s`;
+        petal.style.animationDelay = `${delay}s, ${delay}s`;
+
+        container.appendChild(petal);
+      }
+    }
+
+    /* 4. 抽籤流程 */
+    function startDrawProcess() {
+      document.getElementById('homeView').classList.add('hidden');
+      document.getElementById('resultView').classList.add('hidden');
+      
+      const shakeView = document.getElementById('shakeView');
+      shakeView.classList.remove('hidden');
+      shakeView.classList.add('flex');
+
+      const cylinder = document.getElementById('omikujiCylinder');
+      const stick = document.getElementById('omikujiStick');
+
+      stick.classList.remove('animate-rise');
+      stick.style.opacity = '0';
+
+      cylinder.classList.add('animate-shake');
+
+      let shakeCount = 0;
+      const shakeInterval = setInterval(() => {
+        playWoodenShakeSound();
+        shakeCount++;
+        if (shakeCount >= 5) clearInterval(shakeInterval);
+      }, 160);
+
+      setTimeout(() => {
+        cylinder.classList.remove('animate-shake');
+        stick.classList.add('animate-rise');
+        playBellSound();
+
+        setTimeout(() => {
+          showResultView();
+        }, 1300);
+
+      }, 1000);
+    }
+
+    /* 5. 顯示結果 */
+    function showResultView() {
+      const randomFortune = FORTUNES[Math.floor(Math.random() * FORTUNES.length)];
+      const randomColor = LUCKY_COLORS[Math.floor(Math.random() * LUCKY_COLORS.length)];
+      const randomItem = LUCKY_ITEMS[Math.floor(Math.random() * LUCKY_ITEMS.length)];
+
+      currentFortuneResult = {
+        level: randomFortune.level,
+        poem: randomFortune.poem,
+        luckyColor: randomColor,
+        luckyItem: randomItem
+      };
+
+      const badge = document.getElementById('fortuneBadge');
+      badge.innerText = randomFortune.level;
+      badge.className = `inline-block px-8 py-3 rounded-2xl text-4xl sm:text-5xl font-black tracking-widest shadow-inner my-2 ${randomFortune.color}`;
+
+      document.getElementById('fortunePoem').innerText = randomFortune.poem;
+      document.getElementById('luckyColorText').innerText = randomColor.name;
+      document.getElementById('colorDot').style.backgroundColor = randomColor.hex;
+      document.getElementById('luckyItemText').innerText = randomItem;
+
+      document.getElementById('shakeView').classList.add('hidden');
+      document.getElementById('shakeView').classList.remove('flex');
+
+      const resultView = document.getElementById('resultView');
+      resultView.classList.remove('hidden');
+      resultView.classList.add('flex');
+    }
+
+    function showHome() {
+      document.getElementById('resultView').classList.add('hidden');
+      document.getElementById('shakeView').classList.add('hidden');
+      document.getElementById('homeView').classList.remove('hidden');
+    }
+
+    /* 6. 功能與複製 */
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      toast.classList.add('opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 2000);
+    }
+
+    function copyFortuneText() {
+      if (!currentFortuneResult) return;
+      
+      const copyContent = `運勢：${currentFortuneResult.level}\n${currentFortuneResult.poem}\n幸運色：${currentFortuneResult.luckyColor.name}\n幸運小物：${currentFortuneResult.luckyItem}`;
+
+      const textarea = document.createElement('textarea');
+      textarea.value = copyContent;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      
+      try {
+        document.execCommand('copy');
+        showToast('已複製籤詩！');
+      } catch (err) {
+        showToast('複製失敗');
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+
+    function downloadFortuneCard() {
+      if (!currentFortuneResult) return;
+
+      const canvas = document.getElementById('exportCanvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = 600;
+      canvas.height = 620;
+
+      ctx.fillStyle = '#FFFDF9';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = '#D93829';
+      ctx.lineWidth = 12;
+      ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+      ctx.fillStyle = '#D93829';
+      ctx.fillRect(20, 20, canvas.width - 40, 16);
+
+      // Level Box
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#D93829';
+      ctx.roundRect(canvas.width / 2 - 90, 80, 180, 80, 16);
+      ctx.fill();
+
+      ctx.font = 'bold 52px "Zen Maru Gothic", sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(currentFortuneResult.level, canvas.width / 2, 140);
+
+      // Poem
+      ctx.fillStyle = '#FFF5F5';
+      ctx.roundRect(50, 200, canvas.width - 100, 180, 16);
+      ctx.fill();
+
+      ctx.font = 'bold 24px "Zen Maru Gothic", sans-serif';
+      ctx.fillStyle = '#222222';
+      
+      const poemText = currentFortuneResult.poem;
+      if (poemText.length > 15) {
+        ctx.fillText(poemText.substring(0, 15), canvas.width / 2, 270);
+        ctx.fillText(poemText.substring(15), canvas.width / 2, 320);
+      } else {
+        ctx.fillText(poemText, canvas.width / 2, 290);
+      }
+
+      // Lucky Box 1
+      ctx.fillStyle = '#F8F9FA';
+      ctx.roundRect(50, 420, 240, 110, 12);
+      ctx.fill();
+
+      ctx.font = 'bold 16px "Zen Maru Gothic", sans-serif';
+      ctx.fillStyle = '#888888';
+      ctx.fillText('幸運色', 170, 455);
+      ctx.font = 'bold 22px "Zen Maru Gothic", sans-serif';
+      ctx.fillStyle = '#333333';
+      ctx.fillText(currentFortuneResult.luckyColor.name, 170, 495);
+
+      // Lucky Box 2
+      ctx.fillStyle = '#F8F9FA';
+      ctx.roundRect(310, 420, 240, 110, 12);
+      ctx.fill();
+
+      ctx.font = 'bold 16px "Zen Maru Gothic", sans-serif';
+      ctx.fillStyle = '#888888';
+      ctx.fillText('幸運小物', 430, 455);
+      ctx.font = 'bold 22px "Zen Maru Gothic", sans-serif';
+      ctx.fillStyle = '#333333';
+      ctx.fillText(currentFortuneResult.luckyItem, 430, 495);
+
+      const imageURI = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `運勢籤_${currentFortuneResult.level}.png`;
+      link.href = imageURI;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('已下載卡片！');
+    }
+
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+        if (w < 2 * r) r = w / 2;
+        if (h < 2 * r) r = h / 2;
+        this.beginPath();
+        this.moveTo(x + r, y);
+        this.arcTo(x + w, y, x + w, y + h, r);
+        this.arcTo(x + w, y + h, x, y + h, r);
+        this.arcTo(x, y + h, x, y, r);
+        this.arcTo(x, y, x + w, y, r);
+        this.closePath();
+        return this;
+      };
+    }
+
+    window.onload = function() {
+      createSakuraPetals();
+    };
+  </script>
+</body>
+</html>
